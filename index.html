@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Syndromic Trends Dashboard - Vigilancia Epidemiológica Bogotá</title>
+    <title>Syndromic Trends Dashboard - Secretaría de Salud Bogotá</title>
     <style>
         * {
             margin: 0;
@@ -12,763 +12,936 @@
         }
 
         body {
-            font-family: 'Courier New', monospace;
-            background: #000;
-            color: #0f0;
-            overflow: hidden;
-            height: 100vh;
-            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #2c3e50;
+            line-height: 1.6;
         }
 
-        #canvas-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
+        .header {
+            background: #ffffff;
+            border-bottom: 3px solid #0066cc;
+            padding: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .matrix-rain {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 2;
-            opacity: 0.1;
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .dashboard {
-            position: relative;
-            z-index: 10;
-            padding: 20px;
-            height: 100vh;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        .logo-section {
+            display: flex;
+            align-items: center;
             gap: 20px;
-            background: rgba(0, 0, 0, 0.7);
         }
 
-        .card {
-            background: rgba(0, 20, 0, 0.9);
-            border: 2px solid #0f0;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-            backdrop-filter: blur(10px);
-            animation: pulse 2s infinite alternate;
-        }
-
-        @keyframes pulse {
-            from { box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
-            to { box-shadow: 0 0 40px rgba(0, 255, 0, 0.8); }
-        }
-
-        h1, h2, h3 {
-            text-align: center;
-            text-shadow: 0 0 10px #0f0;
-            margin-bottom: 20px;
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: #0066cc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
         }
 
         h1 {
-            font-size: 2.5em;
-            animation: glow 2s ease-in-out infinite alternate;
+            font-size: 28px;
+            color: #0066cc;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
-        @keyframes glow {
-            from { text-shadow: 0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0; }
-            to { text-shadow: 0 0 20px #0f0, 0 0 30px #0f0, 0 0 40px #0f0; }
+        .subtitle {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 4px;
         }
 
-        .alert {
-            background: rgba(255, 0, 0, 0.2);
-            border: 2px solid #f00;
-            color: #ff0;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            animation: alertPulse 1s infinite;
+        .update-info {
+            text-align: right;
+            font-size: 14px;
+            color: #6c757d;
         }
 
-        @keyframes alertPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+        .update-time {
+            font-weight: 600;
+            color: #2c3e50;
         }
 
-        .pathogen-item {
-            background: rgba(0, 40, 0, 0.8);
-            margin: 10px 0;
-            padding: 15px;
-            border-left: 4px solid #0f0;
-            position: relative;
-            overflow: hidden;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .pathogen-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
-            animation: scan 3s infinite;
+        .alert-banner {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        @keyframes scan {
-            0% { left: -100%; }
-            100% { left: 100%; }
+        .alert-banner.critical {
+            background: #f8d7da;
+            border-color: #f5c6cb;
         }
 
-        .progress-bar {
-            width: 100%;
-            height: 20px;
-            background: rgba(0, 50, 0, 0.5);
-            border: 1px solid #0f0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
+        .alert-icon {
+            font-size: 24px;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #0f0, #0ff);
-            transition: width 0.5s ease;
-            box-shadow: 0 0 10px #0f0;
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .main-chart {
+            grid-column: span 2;
         }
 
         .chart-container {
-            height: 300px;
-            margin: 20px 0;
             position: relative;
-        }
-
-        .loading {
-            text-align: center;
-            font-size: 1.5em;
-            animation: blink 1s infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
+            height: 400px;
+            margin-top: 20px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 20px 0;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
-        .stat-box {
-            background: rgba(0, 30, 0, 0.8);
-            padding: 15px;
+        .stat-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
             text-align: center;
-            border: 1px solid #0f0;
-            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e9ecef;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
         }
 
         .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #0ff;
+            font-size: 36px;
+            font-weight: 700;
+            color: #0066cc;
+            line-height: 1;
         }
 
-        .fullscreen-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: rgba(0, 255, 0, 0.2);
-            border: 2px solid #0f0;
-            color: #0f0;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            font-family: inherit;
+        .stat-label {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 8px;
         }
 
-        .fullscreen-btn:hover {
-            background: rgba(0, 255, 0, 0.4);
-            box-shadow: 0 0 20px #0f0;
+        .pathogen-list {
+            list-style: none;
+            margin-top: 16px;
         }
 
-        #prediction-chart {
-            filter: hue-rotate(180deg);
-        }
-
-        .cyber-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, 20px);
-            gap: 2px;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            opacity: 0.1;
-            z-index: 1;
-        }
-
-        .cyber-cell {
-            background: #0f0;
-            opacity: 0;
-            animation: flicker 2s infinite;
-            animation-delay: calc(var(--i) * 0.1s);
-        }
-
-        @keyframes flicker {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 0.5; }
-        }
-
-        .sound-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
-            background: rgba(0, 255, 0, 0.2);
-            border: 2px solid #0f0;
-            color: #0f0;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
+        .pathogen-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
+            border-left: 4px solid #0066cc;
+            transition: all 0.2s ease;
+        }
+
+        .pathogen-item:hover {
+            background: #e9ecef;
+            transform: translateX(4px);
+        }
+
+        .pathogen-item.high-risk {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .pathogen-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .pathogen-percentage {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0066cc;
+        }
+
+        .pathogen-item.high-risk .pathogen-percentage {
+            color: #dc3545;
+        }
+
+        .trend-indicator {
+            font-size: 14px;
+            margin-left: 8px;
+        }
+
+        .trend-up {
+            color: #dc3545;
+        }
+
+        .trend-down {
+            color: #28a745;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0066cc;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: #ffffff;
+            padding: 20px 0;
+            margin-top: 40px;
+            text-align: center;
+            font-size: 14px;
         }
 
         @media (max-width: 768px) {
-            .dashboard {
+            .main-grid {
                 grid-template-columns: 1fr;
-                padding: 10px;
             }
             
-            h1 {
-                font-size: 1.5em;
+            .main-chart {
+                grid-column: span 1;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+            
+            .update-info {
+                text-align: center;
             }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-    <div id="canvas-container"></div>
-    <canvas class="matrix-rain" id="matrix"></canvas>
-    
-    <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Pantalla Completa</button>
-    <button class="sound-toggle" onclick="toggleSound()">🔊</button>
-    
-    <div class="dashboard">
-        <div class="card" style="grid-column: span 2;">
-            <h1>🧬 SYNDROMIC TRENDS - VIGILANCIA EPIDEMIOLÓGICA BOGOTÁ 🧬</h1>
-            <div class="cyber-grid" id="cyberGrid"></div>
-        </div>
-
-        <div class="card">
-            <h2>📊 Estado Actual del Sistema</h2>
-            <div id="status" class="loading">Conectando con sistema de vigilancia...</div>
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <div>Semanas Analizadas</div>
-                    <div class="stat-value" id="totalWeeks">--</div>
-                </div>
-                <div class="stat-box">
-                    <div>Última Actualización</div>
-                    <div class="stat-value" id="lastUpdate">--:--</div>
-                </div>
-                <div class="stat-box">
-                    <div>Patógenos Detectados</div>
-                    <div class="stat-value" id="totalPathogens">--</div>
-                </div>
-                <div class="stat-box">
-                    <div>Nivel de Alerta</div>
-                    <div class="stat-value" id="alertLevel">NORMAL</div>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-section">
+                <div class="logo">ST</div>
+                <div>
+                    <h1>Syndromic Trends Dashboard</h1>
+                    <div class="subtitle">Sistema de Vigilancia Epidemiológica - Secretaría de Salud de Bogotá</div>
                 </div>
             </div>
+            <div class="update-info">
+                <div>Última actualización</div>
+                <div class="update-time" id="lastUpdate">--:--</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="alert-banner" id="alertBanner" style="display: none;">
+            <span class="alert-icon">⚠️</span>
+            <div id="alertMessage"></div>
         </div>
 
-        <div class="card">
-            <h2>🎯 Radar Epidemiológico</h2>
-            <div class="chart-container">
-                <canvas id="radarChart"></canvas>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalWeeks">--</div>
+                <div class="stat-label">Semanas Analizadas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPathogens">--</div>
+                <div class="stat-label">Patógenos Detectados</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgPositivity">--%</div>
+                <div class="stat-label">Positividad Promedio</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="maxPositivity">--%</div>
+                <div class="stat-label">Positividad Máxima</div>
             </div>
         </div>
 
-        <div class="card">
-            <h2>⚠️ Top 5 Amenazas Actuales</h2>
-            <div id="topThreats">
-                <div class="loading">Analizando patógenos...</div>
+        <div class="main-grid">
+            <div class="card main-chart">
+                <h2 class="card-title">
+                    📊 Porcentaje de Positividad - Top 5 Patógenos (Últimas 12 Semanas)
+                </h2>
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
             </div>
-        </div>
 
-        <div class="card">
-            <h2>📈 Tendencias Temporales</h2>
-            <div class="chart-container">
-                <canvas id="trendChart"></canvas>
+            <div class="card">
+                <h2 class="card-title">
+                    🦠 Top 10 Patógenos - Última Semana
+                </h2>
+                <div id="pathogenList" class="pathogen-list">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Cargando datos...</p>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="card">
-            <h2>🔮 Predicción IA (Próximas 4 Semanas)</h2>
-            <div class="chart-container">
-                <canvas id="predictionChart"></canvas>
-            </div>
-        </div>
-
-        <div class="card" style="grid-column: span 2;">
-            <h2>🚨 Alertas del Sistema</h2>
-            <div id="alerts">
-                <div class="alert">Sistema inicializando análisis predictivo...</div>
+            <div class="card">
+                <h2 class="card-title">
+                    📈 Tendencia Temporal - Rhinovirus
+                </h2>
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
+    <footer class="footer">
+        <p>Secretaría de Salud de Bogotá © 2025 - Sistema de Vigilancia Syndromic Trends</p>
+    </footer>
+
+    <!-- Cargar Chart.js con múltiples opciones de CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        // Fallback si el primer CDN falla
+        if (typeof Chart === 'undefined') {
+            console.log('Intentando CDN alternativo...');
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"><\/script>');
+        }
+    </script>
+    
     <script>
         // Configuración de la API
         const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzoUUg5cJ-psIJsRUKXUTvLkMWQgP__7mMOKvRnT3WknrpxPqvjZ86w_iRqHMtwtCRm/exec';
         
+        console.log('Dashboard Syndromic Trends iniciando...');
+        
         // Variables globales
         let data = [];
-        let scene, camera, renderer, particles;
-        let radarChart, trendChart, predictionChart;
-        let soundEnabled = false;
-        let audioContext;
-
-        // Matrix Rain Effect
-        function initMatrixRain() {
-            const canvas = document.getElementById('matrix');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
-            const matrixArray = matrix.split("");
-            
-            const fontSize = 10;
-            const columns = canvas.width / fontSize;
-            const drops = [];
-            
-            for(let x = 0; x < columns; x++) {
-                drops[x] = 1;
-            }
-            
-            function draw() {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.fillStyle = '#0F0';
-                ctx.font = fontSize + 'px monospace';
-                
-                for(let i = 0; i < drops.length; i++) {
-                    const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
-                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-                    
-                    if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                        drops[i] = 0;
-                    }
-                    drops[i]++;
-                }
-            }
-            
-            setInterval(draw, 35);
-        }
-
-        // Three.js 3D Background
-        function init3DBackground() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-            // Crear partículas
-            const geometry = new THREE.BufferGeometry();
-            const vertices = [];
-            const colors = [];
-
-            for (let i = 0; i < 2000; i++) {
-                vertices.push(
-                    Math.random() * 2000 - 1000,
-                    Math.random() * 2000 - 1000,
-                    Math.random() * 2000 - 1000
-                );
-                colors.push(0, 1, Math.random());
-            }
-
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-
-            const material = new THREE.PointsMaterial({
-                size: 3,
-                vertexColors: true,
-                blending: THREE.AdditiveBlending,
-                transparent: true
-            });
-
-            particles = new THREE.Points(geometry, material);
-            scene.add(particles);
-
-            camera.position.z = 1000;
-
-            animate();
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            particles.rotation.x += 0.0005;
-            particles.rotation.y += 0.001;
-            
-            const positions = particles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 1] += Math.sin(Date.now() * 0.001 + i) * 0.5;
-            }
-            particles.geometry.attributes.position.needsUpdate = true;
-            
-            renderer.render(scene, camera);
-        }
+        let mainChart, trendChart;
 
         // Fetch data from Google Apps Script
         async function fetchData() {
             try {
-                updateStatus('Conectando con base de datos...');
-                const response = await fetch(WEB_APP_URL);
-                const result = await response.json();
+                console.log('Iniciando carga de datos...');
+                console.log('URL:', WEB_APP_URL);
                 
-                if (result.exito) {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                console.log('Respuesta recibida:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                console.log('Respuesta cruda:', text.substring(0, 200));
+                
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Error al parsear JSON:', parseError);
+                    console.error('Texto recibido:', text);
+                    throw new Error('La respuesta no es JSON válido');
+                }
+                
+                if (result.exito && result.datos && Array.isArray(result.datos) && result.datos.length > 0) {
                     data = result.datos;
-                    updateStatus(`✅ Conectado - ${result.totalSemanas} semanas cargadas`);
+                    console.log(`Datos cargados: ${result.totalSemanas} semanas`);
+                    
                     document.getElementById('totalWeeks').textContent = result.totalSemanas;
-                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
                     
                     processData();
-                    createCharts();
-                    updateAlerts();
                     
-                    if (soundEnabled) playNotificationSound();
+                    // Intentar crear gráficos solo si Chart.js está disponible
+                    if (typeof Chart !== 'undefined') {
+                        try {
+                            createMainChart();
+                        } catch (error) {
+                            console.error('Error al crear gráfico principal:', error);
+                            showAlternativeChart('mainChart', 'Error al crear el gráfico principal');
+                        }
+                        
+                        try {
+                            createTrendChart();
+                        } catch (error) {
+                            console.error('Error al crear gráfico de tendencias:', error);
+                            showAlternativeChart('trendChart', 'Error al crear el gráfico de tendencias');
+                        }
+                    } else {
+                        console.warn('Chart.js no disponible, mostrando datos sin gráficos');
+                        showAlternativeChart('mainChart', 'Los gráficos no están disponibles. Consulte la tabla de patógenos para ver los datos.');
+                        showAlternativeChart('trendChart', 'Gráfico de tendencias no disponible');
+                    }
+                    
+                    try {
+                        updatePathogenList();
+                    } catch (error) {
+                        console.error('Error al actualizar lista de patógenos:', error);
+                    }
                 } else {
-                    updateStatus('❌ Error al cargar datos');
+                    console.error('Respuesta sin datos válidos:', result);
+                    showError('No se encontraron datos válidos');
                 }
             } catch (error) {
-                updateStatus('❌ Error de conexión: ' + error.message);
+                console.error('Error detallado:', error);
+                
+                // Intentar diagnóstico adicional
+                if (error.message.includes('Failed to fetch') || error.message.includes('Load failed')) {
+                    showError('Error de conexión. Verifica que el Web App esté configurado como "Cualquier persona"');
+                    console.error('Posibles causas:');
+                    console.error('1. El Web App no está configurado como público');
+                    console.error('2. La URL es incorrecta');
+                    console.error('3. Problemas de CORS');
+                    
+                    // Mostrar botón para probar la URL directamente
+                    const alertBanner = document.getElementById('alertBanner');
+                    if (alertBanner) {
+                        alertBanner.innerHTML += `
+                            <div style="margin-top: 10px;">
+                                <a href="${WEB_APP_URL}" target="_blank" style="color: #0066cc; text-decoration: underline;">
+                                    Probar URL del Web App directamente
+                                </a>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showError('Error: ' + error.message);
+                }
             }
-        }
-
-        function updateStatus(message) {
-            document.getElementById('status').innerHTML = message;
         }
 
         function processData() {
-            if (data.length === 0) return;
-            
-            // Get latest week data
-            const latestWeek = data[data.length - 1];
-            const topThreats = latestWeek.patogenos.slice(0, 5);
+            if (!data || data.length === 0) {
+                console.warn('No hay datos para procesar');
+                return;
+            }
             
             // Count unique pathogens
             const uniquePathogens = new Set();
+            let totalPositivity = 0;
+            let maxPositivity = 0;
+            let count = 0;
+            
             data.forEach(week => {
-                week.patogenos.forEach(p => uniquePathogens.add(p.nombre));
-            });
-            document.getElementById('totalPathogens').textContent = uniquePathogens.size;
-            
-            // Update top threats
-            const threatsHTML = topThreats.map((pathogen, index) => {
-                const alertClass = pathogen.porcentaje > 30 ? 'alert' : '';
-                return `
-                    <div class="pathogen-item ${alertClass}">
-                        <h3>#${index + 1} - ${pathogen.nombre}</h3>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${pathogen.porcentaje}%"></div>
-                        </div>
-                        <p>Prevalencia: ${pathogen.porcentaje.toFixed(1)}%</p>
-                    </div>
-                `;
-            }).join('');
-            
-            document.getElementById('topThreats').innerHTML = threatsHTML;
-            
-            // Update alert level
-            const maxPercentage = Math.max(...latestWeek.patogenos.map(p => p.porcentaje));
-            if (maxPercentage > 40) {
-                document.getElementById('alertLevel').textContent = 'CRÍTICO';
-                document.getElementById('alertLevel').style.color = '#f00';
-            } else if (maxPercentage > 30) {
-                document.getElementById('alertLevel').textContent = 'ALTO';
-                document.getElementById('alertLevel').style.color = '#ff0';
-            } else {
-                document.getElementById('alertLevel').textContent = 'NORMAL';
-                document.getElementById('alertLevel').style.color = '#0f0';
-            }
-        }
-
-        function createCharts() {
-            if (data.length === 0) return;
-            
-            // Radar Chart
-            const latestWeek = data[data.length - 1];
-            const radarCtx = document.getElementById('radarChart').getContext('2d');
-            
-            if (radarChart) radarChart.destroy();
-            
-            radarChart = new Chart(radarCtx, {
-                type: 'radar',
-                data: {
-                    labels: latestWeek.patogenos.map(p => p.nombre.substring(0, 20) + '...'),
-                    datasets: [{
-                        label: 'Prevalencia Actual',
-                        data: latestWeek.patogenos.map(p => p.porcentaje),
-                        borderColor: 'rgba(0, 255, 0, 1)',
-                        backgroundColor: 'rgba(0, 255, 0, 0.2)',
-                        pointBackgroundColor: 'rgba(0, 255, 0, 1)',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(0, 255, 0, 1)'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 255, 0, 0.2)' },
-                            ticks: { color: '#0f0' }
+                if (week && week.patogenos && Array.isArray(week.patogenos)) {
+                    week.patogenos.forEach(p => {
+                        if (p && p.nombre) {
+                            uniquePathogens.add(p.nombre);
+                            if (p.posicion === 1 && typeof p.porcentaje === 'number') {
+                                totalPositivity += p.porcentaje;
+                                maxPositivity = Math.max(maxPositivity, p.porcentaje);
+                                count++;
+                            }
                         }
-                    },
-                    plugins: {
-                        legend: { labels: { color: '#0f0' } }
-                    }
+                    });
                 }
             });
             
-            // Trend Chart
-            createTrendChart();
+            document.getElementById('totalPathogens').textContent = uniquePathogens.size;
+            document.getElementById('avgPositivity').textContent = count > 0 ? Math.round(totalPositivity / count) + '%' : '0%';
+            document.getElementById('maxPositivity').textContent = Math.round(maxPositivity) + '%';
             
-            // Prediction Chart
-            createPredictionChart();
+            // Check for alerts
+            if (data.length > 0) {
+                const latestWeek = data[data.length - 1];
+                if (latestWeek && latestWeek.patogenos && latestWeek.patogenos.length > 0) {
+                    const maxLatest = Math.max(...latestWeek.patogenos.map(p => p.porcentaje || 0));
+                    
+                    if (maxLatest > 35) {
+                        const alertBanner = document.getElementById('alertBanner');
+                        const alertMessage = document.getElementById('alertMessage');
+                        alertBanner.style.display = 'flex';
+                        alertBanner.className = 'alert-banner critical';
+                        alertMessage.innerHTML = `<strong>ALERTA CRÍTICA:</strong> ${latestWeek.patogenos[0].nombre || 'Patógeno desconocido'} ha alcanzado ${maxLatest.toFixed(1)}% de positividad`;
+                    }
+                }
+            }
         }
 
-        function createTrendChart() {
-            const trendCtx = document.getElementById('trendChart').getContext('2d');
+        function createMainChart() {
+            if (!data || data.length === 0) {
+                console.warn('No hay datos para crear el gráfico principal');
+                return;
+            }
             
-            // Get top 3 pathogens from latest data
+            const canvas = document.getElementById('mainChart');
+            if (!canvas) {
+                console.error('No se encontró el canvas mainChart');
+                return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Get data from 2025 only
+            let data2025 = data.filter(week => {
+                try {
+                    if (week && week.fecha) {
+                        const date = new Date(week.fecha);
+                        return !isNaN(date.getTime()) && date.getFullYear() === 2025;
+                    }
+                } catch (e) {
+                    console.warn('Error al procesar fecha:', week.fecha);
+                }
+                return false;
+            }).slice(-12); // Last 12 weeks
+            
+            if (data2025.length === 0) {
+                console.warn('No hay datos del 2025, mostrando últimas semanas disponibles');
+                // If no 2025 data, use last 12 weeks
+                data2025 = data.slice(-12);
+            }
+            
+            if (data2025.length === 0) {
+                console.error('No hay datos suficientes para crear el gráfico');
+                return;
+            }
+            
+            // Get top 5 pathogens from latest data
             const latestWeek = data[data.length - 1];
-            const topPathogens = latestWeek.patogenos.slice(0, 3);
+            if (!latestWeek || !latestWeek.patogenos) {
+                console.error('No hay datos de la última semana');
+                return;
+            }
             
-            // Prepare datasets for top pathogens over time
-            const datasets = topPathogens.map((pathogen, index) => {
-                const colors = ['rgba(0, 255, 0, 1)', 'rgba(0, 255, 255, 1)', 'rgba(255, 255, 0, 1)'];
-                const pathogenData = data.slice(-12).map(week => {
-                    const found = week.patogenos.find(p => p.nombre === pathogen.nombre);
-                    return found ? found.porcentaje : 0;
+            const top5Pathogens = latestWeek.patogenos
+                .filter(p => p && p.nombre && typeof p.porcentaje === 'number')
+                .slice(0, 5);
+            
+            if (top5Pathogens.length === 0) {
+                console.error('No hay patógenos válidos para graficar');
+                return;
+            }
+            
+            // Prepare datasets
+            const datasets = top5Pathogens.map((pathogen, index) => {
+                const colors = [
+                    '#0066cc', // Azul principal
+                    '#28a745', // Verde
+                    '#ffc107', // Amarillo
+                    '#dc3545', // Rojo
+                    '#6c757d'  // Gris
+                ];
+                
+                const pathogenData = data2025.map(week => {
+                    if (week && week.patogenos) {
+                        const found = week.patogenos.find(p => p && p.nombre === pathogen.nombre);
+                        return found && typeof found.porcentaje === 'number' ? found.porcentaje : 0;
+                    }
+                    return 0;
                 });
                 
                 return {
-                    label: pathogen.nombre,
+                    label: pathogen.nombre || `Patógeno ${index + 1}`,
                     data: pathogenData,
-                    borderColor: colors[index],
-                    backgroundColor: colors[index].replace('1)', '0.2)'),
-                    tension: 0.4
+                    backgroundColor: colors[index % colors.length],
+                    borderColor: colors[index % colors.length],
+                    borderWidth: 2
                 };
             });
             
-            if (trendChart) trendChart.destroy();
+            if (mainChart) mainChart.destroy();
             
-            trendChart = new Chart(trendCtx, {
-                type: 'line',
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js no está cargado, mostrando alternativa');
+                showAlternativeChart('mainChart', 'No se pudieron cargar los gráficos. Los datos están disponibles en la tabla de patógenos.');
+                return;
+            }
+            
+            mainChart = new Chart(ctx, {
+                type: 'bar',
                 data: {
-                    labels: data.slice(-12).map((w, i) => `Semana ${i + 1}`),
+                    labels: data2025.map((w, i) => {
+                        try {
+                            const date = new Date(w.fecha);
+                            if (!isNaN(date.getTime())) {
+                                return `Sem ${i + 1}`;
+                            }
+                        } catch (e) {
+                            console.warn('Fecha inválida:', w.fecha);
+                        }
+                        return `Sem ${i + 1}`;
+                    }),
                     datasets: datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 255, 0, 0.2)' },
-                            ticks: { color: '#0f0' }
+                    plugins: {
+                        title: {
+                            display: false
                         },
-                        x: {
-                            grid: { color: 'rgba(0, 255, 0, 0.2)' },
-                            ticks: { color: '#0f0' }
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
                         }
                     },
-                    plugins: {
-                        legend: { labels: { color: '#0f0' } }
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 50,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                color: '#e9ecef'
+                            }
+                        }
                     }
                 }
             });
         }
 
-        function createPredictionChart() {
-            const predCtx = document.getElementById('predictionChart').getContext('2d');
+        function createTrendChart() {
+            if (!data || data.length === 0) {
+                console.warn('No hay datos para crear el gráfico de tendencias');
+                return;
+            }
             
-            // Simulated predictions
-            const weeks = ['Semana +1', 'Semana +2', 'Semana +3', 'Semana +4'];
-            const predictions = weeks.map(() => Math.random() * 40 + 10);
+            const canvas = document.getElementById('trendChart');
+            if (!canvas) {
+                console.error('No se encontró el canvas trendChart');
+                return;
+            }
             
-            if (predictionChart) predictionChart.destroy();
+            const ctx = canvas.getContext('2d');
             
-            predictionChart = new Chart(predCtx, {
-                type: 'bar',
+            // Get Rhinovirus data
+            const rhinoData = data.slice(-20).map(week => {
+                if (week && week.patogenos) {
+                    const rhino = week.patogenos.find(p => p && p.nombre && p.nombre.includes('Rhinovirus'));
+                    return rhino && typeof rhino.porcentaje === 'number' ? rhino.porcentaje : 0;
+                }
+                return 0;
+            });
+            
+            if (rhinoData.length === 0 || rhinoData.every(v => v === 0)) {
+                console.warn('No hay datos de Rhinovirus para graficar');
+                return;
+            }
+            
+            if (trendChart) trendChart.destroy();
+            
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js no está cargado, mostrando alternativa');
+                showAlternativeChart('trendChart', 'Gráfico de tendencias no disponible');
+                return;
+            }
+            
+            trendChart = new Chart(ctx, {
+                type: 'line',
                 data: {
-                    labels: weeks,
+                    labels: data.slice(-20).map((w, i) => `S${i + 1}`),
                     datasets: [{
-                        label: 'Predicción Rhinovirus (%)',
-                        data: predictions,
-                        backgroundColor: predictions.map(v => 
-                            v > 30 ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 255, 255, 0.5)'
-                        ),
-                        borderColor: predictions.map(v => 
-                            v > 30 ? 'rgba(255, 0, 0, 1)' : 'rgba(0, 255, 255, 1)'
-                        ),
-                        borderWidth: 2
+                        label: 'Human Rhinovirus/Enterovirus',
+                        data: rhinoData,
+                        borderColor: '#0066cc',
+                        backgroundColor: 'rgba(0, 102, 204, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#0066cc',
+                        tension: 0.3,
+                        fill: true
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 255, 0, 0.2)' },
-                            ticks: { color: '#0f0' }
-                        },
-                        x: {
-                            grid: { color: 'rgba(0, 255, 0, 0.2)' },
-                            ticks: { color: '#0f0' }
+                    plugins: {
+                        legend: {
+                            display: false
                         }
                     },
-                    plugins: {
-                        legend: { labels: { color: '#0f0' } }
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                color: '#e9ecef'
+                            }
+                        }
                     }
                 }
             });
         }
 
-        function updateAlerts() {
-            const alerts = [];
+        function updatePathogenList() {
+            if (data.length === 0) return;
             
-            if (data.length > 0) {
-                const latestWeek = data[data.length - 1];
+            const latestWeek = data[data.length - 1];
+            if (!latestWeek || !latestWeek.patogenos) {
+                document.getElementById('pathogenList').innerHTML = '<p class="loading">No hay datos disponibles</p>';
+                return;
+            }
+            
+            const listHTML = latestWeek.patogenos
+                .filter(p => p && p.nombre && typeof p.porcentaje === 'number')
+                .map((pathogen, index) => {
+                const isHighRisk = typeof pathogen.porcentaje === 'number' && pathogen.porcentaje > 30;
+                let trend = '';
                 
-                // Check for high prevalence
-                latestWeek.patogenos.forEach(pathogen => {
-                    if (pathogen.porcentaje > 35) {
-                        alerts.push(`⚠️ ALERTA: ${pathogen.nombre} con prevalencia crítica de ${pathogen.porcentaje.toFixed(1)}%`);
-                    }
-                });
-                
-                // Check for rising trends
-                if (data.length > 4) {
-                    const recentData = data.slice(-4);
-                    const rhinoTrend = recentData.map(w => {
-                        const rhino = w.patogenos.find(p => p.nombre.includes('Rhinovirus'));
-                        return rhino ? rhino.porcentaje : 0;
-                    });
-                    
-                    if (rhinoTrend[3] > rhinoTrend[0] * 1.5) {
-                        alerts.push('📈 Tendencia ascendente detectada en Rhinovirus');
+                if (data.length > 1) {
+                    const prevWeek = data[data.length - 2];
+                    if (prevWeek && prevWeek.patogenos) {
+                        const prevPathogen = prevWeek.patogenos.find(p => p && p.nombre === pathogen.nombre);
+                        if (prevPathogen && typeof prevPathogen.porcentaje === 'number' && typeof pathogen.porcentaje === 'number') {
+                            const diff = pathogen.porcentaje - prevPathogen.porcentaje;
+                            if (diff > 1) {
+                                trend = '<span class="trend-indicator trend-up">↑</span>';
+                            } else if (diff < -1) {
+                                trend = '<span class="trend-indicator trend-down">↓</span>';
+                            }
+                        }
                     }
                 }
-            }
+                
+                return `
+                    <li class="pathogen-item ${isHighRisk ? 'high-risk' : ''}">
+                        <div>
+                            <div class="pathogen-name">#${index + 1} ${pathogen.nombre || 'Desconocido'}</div>
+                        </div>
+                        <div>
+                            <span class="pathogen-percentage">${typeof pathogen.porcentaje === 'number' ? pathogen.porcentaje.toFixed(1) : '0.0'}%</span>
+                            ${trend}
+                        </div>
+                    </li>
+                `;
+            }).join('');
             
-            if (alerts.length === 0) {
-                alerts.push('✅ Sistema operando normalmente - Sin alertas críticas');
-            }
-            
-            document.getElementById('alerts').innerHTML = alerts.map(alert => 
-                `<div class="alert">${alert} - ${new Date().toLocaleTimeString()}</div>`
-            ).join('');
+            document.getElementById('pathogenList').innerHTML = `<ul class="pathogen-list">${listHTML}</ul>`;
         }
 
-        // Cyber grid effect
-        function initCyberGrid() {
-            const grid = document.getElementById('cyberGrid');
-            for (let i = 0; i < 100; i++) {
-                const cell = document.createElement('div');
-                cell.className = 'cyber-cell';
-                cell.style.setProperty('--i', i);
-                grid.appendChild(cell);
-            }
-        }
-
-        // Sound functions
-        function initSound() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        }
-
-        function playNotificationSound() {
-            if (!audioContext || !soundEnabled) return;
-            
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = 440;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-        }
-
-        function toggleSound() {
-            if (!audioContext) initSound();
-            soundEnabled = !soundEnabled;
-            document.querySelector('.sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
-            if (soundEnabled) playNotificationSound();
-        }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
+        function showError(message) {
+            console.error('Error mostrado al usuario:', message);
+            const alertBanner = document.getElementById('alertBanner');
+            const alertMessage = document.getElementById('alertMessage');
+            if (alertBanner && alertMessage) {
+                alertBanner.style.display = 'flex';
+                alertBanner.className = 'alert-banner critical';
+                alertMessage.textContent = message;
             }
         }
+        
+        function showAlternativeChart(canvasId, message) {
+            const canvas = document.getElementById(canvasId);
+            if (canvas && canvas.parentElement) {
+                if (canvasId === 'mainChart' && data.length > 0) {
+                    // Mostrar barras simples con CSS para el gráfico principal
+                    const latestWeeks = data.slice(-5);
+                    const latestWeek = data[data.length - 1];
+                    const top5 = latestWeek.patogenos.slice(0, 5);
+                    
+                    let barsHTML = '<div style="padding: 20px;"><h3 style="margin-bottom: 20px; color: #2c3e50;">Top 5 Patógenos - Última Semana</h3>';
+                    
+                    top5.forEach((pathogen, i) => {
+                        const colors = ['#0066cc', '#28a745', '#ffc107', '#dc3545', '#6c757d'];
+                        const percentage = pathogen.porcentaje || 0;
+                        barsHTML += `
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span style="font-weight: 600;">${pathogen.nombre}</span>
+                                    <span style="font-weight: 700; color: ${colors[i]};">${percentage.toFixed(1)}%</span>
+                                </div>
+                                <div style="background: #e9ecef; height: 30px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: ${colors[i]}; height: 100%; width: ${percentage}%; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    barsHTML += '</div>';
+                    canvas.parentElement.innerHTML = barsHTML;
+                } else {
+                    canvas.parentElement.innerHTML = `
+                        <div style="padding: 40px; text-align: center; color: #6c757d;">
+                            <p>${message}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
 
-        // Window resize handler
-        window.addEventListener('resize', () => {
-            if (camera && renderer) {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
+        // Función alternativa con JSONP para evitar CORS
+        function fetchDataJSONP() {
+            console.log('Intentando con JSONP...');
+            
+            // Crear callback único
+            const callbackName = 'dashboardCallback_' + Date.now();
+            
+            // Definir callback global
+            window[callbackName] = function(result) {
+                console.log('Datos recibidos via JSONP');
+                
+                if (result.exito && result.datos && Array.isArray(result.datos) && result.datos.length > 0) {
+                    data = result.datos;
+                    console.log(`Datos cargados: ${result.totalSemanas} semanas`);
+                    
+                    document.getElementById('totalWeeks').textContent = result.totalSemanas;
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
+                    
+                    processData();
+                    
+                    if (typeof Chart !== 'undefined') {
+                        createMainChart();
+                        createTrendChart();
+                    } else {
+                        showAlternativeChart('mainChart', 'Visualización de datos');
+                        showAlternativeChart('trendChart', 'Tendencias');
+                    }
+                    
+                    updatePathogenList();
+                } else {
+                    showError('No se encontraron datos válidos');
+                }
+                
+                // Limpiar
+                delete window[callbackName];
+                document.head.removeChild(script);
+            };
+            
+            // Crear script tag
+            const script = document.createElement('script');
+            script.src = WEB_APP_URL + '?callback=' + callbackName;
+            script.onerror = () => {
+                console.error('Error al cargar JSONP');
+                showError('Error de conexión. Verifica la configuración del Web App.');
+                delete window[callbackName];
+            };
+            
+            document.head.appendChild(script);
+        }
+
+        function initializeDashboard() {
+            console.log('Inicializando dashboard...');
+            
+            // Configurar Chart.js si está disponible
+            if (typeof Chart !== 'undefined') {
+                Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+                Chart.defaults.color = '#2c3e50';
             }
             
-            const canvas = document.getElementById('matrix');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
-
-        // Initialize everything
-        window.onload = () => {
-            initMatrixRain();
-            init3DBackground();
-            initCyberGrid();
-            fetchData();
+            // Intentar cargar datos con fetch normal
+            fetchData().catch(error => {
+                console.error('Fetch falló, intentando con JSONP...', error);
+                // Si fetch falla, intentar con JSONP
+                fetchDataJSONP();
+            });
             
-            // Auto-refresh every 30 seconds
-            setInterval(fetchData, 30000);
-            
-            // Update alerts every 10 seconds
-            setInterval(updateAlerts, 10000);
+            // Auto-refresh every 5 minutes
+            setInterval(() => {
+                fetchData().catch(() => fetchDataJSONP());
+            }, 300000);
+        }
+        
+        // Global error handler
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error global:', msg, 'en línea:', lineNo);
+            return false;
         };
+
+        // Ejecutar inicialización después de un breve delay
+        setTimeout(() => {
+            console.log('Iniciando dashboard (con o sin Chart.js)...');
+            initializeDashboard();
+        }, 2000);
     </script>
 </body>
 </html>
