@@ -258,6 +258,16 @@
             font-size: 14px;
         }
 
+        .chart-summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #6c757d;
+            border: 1px solid #e9ecef;
+        }
+
         @media (max-width: 768px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -328,7 +338,7 @@
         <div class="main-grid">
             <div class="card main-chart">
                 <h2 class="card-title">
-                    📊 Porcentaje de Positividad - Top 5 Patógenos (Últimas 12 Semanas)
+                    📊 Evolución de Patógenos 2025 - Líneas Apiladas (% Positividad)
                 </h2>
                 <div class="chart-container">
                     <canvas id="mainChart"></canvas>
@@ -349,7 +359,7 @@
 
             <div class="card">
                 <h2 class="card-title">
-                    📈 Tendencia Temporal - Rhinovirus
+                    📈 Tendencia Temporal 2025 - Rhinovirus/Enterovirus
                 </h2>
                 <div class="chart-container" style="height: 300px;">
                     <canvas id="trendChart"></canvas>
@@ -543,7 +553,7 @@
             
             const ctx = canvas.getContext('2d');
             
-            // Get data from 2025 only
+            // Filtrar TODAS las semanas del 2025
             let data2025 = data.filter(week => {
                 try {
                     if (week && week.fecha) {
@@ -554,12 +564,12 @@
                     console.warn('Error al procesar fecha:', week.fecha);
                 }
                 return false;
-            }).slice(-12); // Last 12 weeks
+            });
             
+            // Si no hay datos del 2025, usar las últimas 52 semanas
             if (data2025.length === 0) {
-                console.warn('No hay datos del 2025, mostrando últimas semanas disponibles');
-                // If no 2025 data, use last 12 weeks
-                data2025 = data.slice(-12);
+                console.warn('No hay datos del 2025, mostrando últimas 52 semanas');
+                data2025 = data.slice(-52);
             }
             
             if (data2025.length === 0) {
@@ -567,65 +577,91 @@
                 return;
             }
             
-            // Get top 5 pathogens from latest data
-            const latestWeek = data[data.length - 1];
-            if (!latestWeek || !latestWeek.patogenos) {
-                console.error('No hay datos de la última semana');
-                return;
-            }
+            console.log(`Mostrando ${data2025.length} semanas en el gráfico`);
             
-            const top5Pathogens = latestWeek.patogenos
-                .filter(p => p && p.nombre && typeof p.porcentaje === 'number')
-                .slice(0, 5);
+            // Obtener todos los patógenos únicos del período
+            const allPathogens = new Set();
+            data2025.forEach(week => {
+                if (week.patogenos) {
+                    week.patogenos.forEach(p => {
+                        if (p && p.nombre) allPathogens.add(p.nombre);
+                    });
+                }
+            });
             
-            if (top5Pathogens.length === 0) {
-                console.error('No hay patógenos válidos para graficar');
-                return;
-            }
+            // Convertir a array y tomar los top 7 más frecuentes
+            const pathogenCounts = {};
+            data2025.forEach(week => {
+                if (week.patogenos) {
+                    week.patogenos.forEach(p => {
+                        if (p && p.nombre) {
+                            pathogenCounts[p.nombre] = (pathogenCounts[p.nombre] || 0) + p.porcentaje;
+                        }
+                    });
+                }
+            });
             
-            // Prepare datasets
-            const datasets = top5Pathogens.map((pathogen, index) => {
-                const colors = [
-                    '#0066cc', // Azul principal
-                    '#28a745', // Verde
-                    '#ffc107', // Amarillo
-                    '#dc3545', // Rojo
-                    '#6c757d'  // Gris
-                ];
-                
+            const top7Pathogens = Object.entries(pathogenCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 7)
+                .map(entry => entry[0]);
+            
+            // Colores vibrantes para mejor visualización
+            const colors = [
+                { bg: 'rgba(0, 102, 204, 0.8)', border: '#0066cc' },     // Azul
+                { bg: 'rgba(40, 167, 69, 0.8)', border: '#28a745' },     // Verde
+                { bg: 'rgba(255, 193, 7, 0.8)', border: '#ffc107' },     // Amarillo
+                { bg: 'rgba(220, 53, 69, 0.8)', border: '#dc3545' },     // Rojo
+                { bg: 'rgba(108, 117, 125, 0.8)', border: '#6c757d' },   // Gris
+                { bg: 'rgba(255, 133, 27, 0.8)', border: '#ff851b' },    // Naranja
+                { bg: 'rgba(156, 39, 176, 0.8)', border: '#9c27b0' }     // Púrpura
+            ];
+            
+            // Preparar datasets para líneas apiladas
+            const datasets = top7Pathogens.map((pathogenName, index) => {
                 const pathogenData = data2025.map(week => {
                     if (week && week.patogenos) {
-                        const found = week.patogenos.find(p => p && p.nombre === pathogen.nombre);
+                        const found = week.patogenos.find(p => p && p.nombre === pathogenName);
                         return found && typeof found.porcentaje === 'number' ? found.porcentaje : 0;
                     }
                     return 0;
                 });
                 
                 return {
-                    label: pathogen.nombre || `Patógeno ${index + 1}`,
+                    label: pathogenName,
                     data: pathogenData,
-                    backgroundColor: colors[index % colors.length],
-                    borderColor: colors[index % colors.length],
-                    borderWidth: 2
+                    backgroundColor: colors[index % colors.length].bg,
+                    borderColor: colors[index % colors.length].border,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: data2025.length > 20 ? 0 : 3,
+                    pointHoverRadius: 5
                 };
             });
             
             if (mainChart) mainChart.destroy();
             
             if (typeof Chart === 'undefined') {
-                console.error('Chart.js no está cargado, mostrando alternativa');
-                showAlternativeChart('mainChart', 'No se pudieron cargar los gráficos. Los datos están disponibles en la tabla de patógenos.');
+                console.error('Chart.js no está cargado');
+                showAlternativeChart('mainChart', 'No se pudieron cargar los gráficos.');
                 return;
             }
             
+            // Crear gráfico de líneas apiladas
             mainChart = new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: data2025.map((w, i) => {
                         try {
                             const date = new Date(w.fecha);
                             if (!isNaN(date.getTime())) {
-                                return `Sem ${i + 1}`;
+                                // Mostrar fecha corta si hay muchas semanas
+                                if (data2025.length > 20) {
+                                    return (i % 4 === 0) ? date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' }) : '';
+                                } else {
+                                    return date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+                                }
                             }
                         } catch (e) {
                             console.warn('Fecha inválida:', w.fecha);
@@ -637,23 +673,40 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
                     plugins: {
                         title: {
-                            display: false
+                            display: true,
+                            text: `Evolución de Patógenos - ${data2025.length} Semanas del 2025`,
+                            font: {
+                                size: 16
+                            },
+                            padding: 20
                         },
                         legend: {
                             position: 'bottom',
                             labels: {
                                 padding: 15,
                                 font: {
-                                    size: 12
-                                }
+                                    size: 11
+                                },
+                                usePointStyle: true
                             }
                         },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
                                     return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                },
+                                footer: function(tooltipItems) {
+                                    let sum = 0;
+                                    tooltipItems.forEach(function(tooltipItem) {
+                                        sum += tooltipItem.parsed.y;
+                                    });
+                                    return 'Total: ' + sum.toFixed(1) + '%';
                                 }
                             }
                         }
@@ -662,23 +715,58 @@
                         x: {
                             grid: {
                                 display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                font: {
+                                    size: 10
+                                }
                             }
                         },
                         y: {
+                            stacked: true,
                             beginAtZero: true,
-                            max: 50,
+                            max: 100,
                             ticks: {
                                 callback: function(value) {
                                     return value + '%';
-                                }
+                                },
+                                stepSize: 20
                             },
                             grid: {
                                 color: '#e9ecef'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Porcentaje de Positividad (%)',
+                                font: {
+                                    size: 12
+                                }
                             }
                         }
                     }
                 }
             });
+            
+            // Agregar resumen debajo del gráfico
+            const chartContainer = canvas.parentElement;
+            const existingSummary = chartContainer.querySelector('.chart-summary');
+            if (existingSummary) {
+                existingSummary.remove();
+            }
+            
+            const summary = document.createElement('div');
+            summary.className = 'chart-summary';
+            summary.style.cssText = 'margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px;';
+            summary.innerHTML = `
+                <strong>Resumen del período:</strong> ${data2025.length} semanas analizadas • 
+                <strong>Patógeno dominante:</strong> ${top7Pathogens[0]} • 
+                <strong>Fecha inicial:</strong> ${new Date(data2025[0].fecha).toLocaleDateString('es-CO')} • 
+                <strong>Fecha final:</strong> ${new Date(data2025[data2025.length - 1].fecha).toLocaleDateString('es-CO')}
+            `;
+            chartContainer.appendChild(summary);
         }
 
         function createTrendChart() {
@@ -695,14 +783,42 @@
             
             const ctx = canvas.getContext('2d');
             
+            // Obtener datos del 2025 o últimas 52 semanas
+            let trendData = data.filter(week => {
+                try {
+                    if (week && week.fecha) {
+                        const date = new Date(week.fecha);
+                        return !isNaN(date.getTime()) && date.getFullYear() === 2025;
+                    }
+                } catch (e) {
+                    return false;
+                }
+                return false;
+            });
+            
+            if (trendData.length === 0) {
+                trendData = data.slice(-52);
+            }
+            
             // Get Rhinovirus data
-            const rhinoData = data.slice(-20).map(week => {
+            const rhinoData = trendData.map(week => {
                 if (week && week.patogenos) {
                     const rhino = week.patogenos.find(p => p && p.nombre && p.nombre.includes('Rhinovirus'));
                     return rhino && typeof rhino.porcentaje === 'number' ? rhino.porcentaje : 0;
                 }
                 return 0;
             });
+            
+            // Calcular promedio móvil de 4 semanas
+            const movingAverage = [];
+            for (let i = 0; i < rhinoData.length; i++) {
+                if (i < 3) {
+                    movingAverage.push(rhinoData[i]);
+                } else {
+                    const avg = (rhinoData[i] + rhinoData[i-1] + rhinoData[i-2] + rhinoData[i-3]) / 4;
+                    movingAverage.push(avg);
+                }
+            }
             
             if (rhinoData.length === 0 || rhinoData.every(v => v === 0)) {
                 console.warn('No hay datos de Rhinovirus para graficar');
@@ -712,7 +828,7 @@
             if (trendChart) trendChart.destroy();
             
             if (typeof Chart === 'undefined') {
-                console.error('Chart.js no está cargado, mostrando alternativa');
+                console.error('Chart.js no está cargado');
                 showAlternativeChart('trendChart', 'Gráfico de tendencias no disponible');
                 return;
             }
@@ -720,35 +836,86 @@
             trendChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.slice(-20).map((w, i) => `S${i + 1}`),
+                    labels: trendData.map((w, i) => {
+                        try {
+                            const date = new Date(w.fecha);
+                            if (!isNaN(date.getTime())) {
+                                if (trendData.length > 20) {
+                                    return (i % 4 === 0) ? date.toLocaleDateString('es-CO', { month: 'short' }) : '';
+                                } else {
+                                    return date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+                                }
+                            }
+                        } catch (e) {
+                            return `S${i + 1}`;
+                        }
+                        return `S${i + 1}`;
+                    }),
                     datasets: [{
                         label: 'Human Rhinovirus/Enterovirus',
                         data: rhinoData,
                         borderColor: '#0066cc',
                         backgroundColor: 'rgba(0, 102, 204, 0.1)',
-                        borderWidth: 3,
-                        pointRadius: 4,
+                        borderWidth: 2,
+                        pointRadius: trendData.length > 20 ? 0 : 3,
                         pointBackgroundColor: '#0066cc',
-                        tension: 0.3,
+                        tension: 0.1,
                         fill: true
+                    }, {
+                        label: 'Promedio Móvil (4 sem)',
+                        data: movingAverage,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: `${trendData.length} semanas de evolución`,
+                            font: {
+                                size: 12
+                            }
                         }
                     },
                     scales: {
                         x: {
                             grid: {
                                 display: false
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                font: {
+                                    size: 10
+                                }
                             }
                         },
                         y: {
                             beginAtZero: true,
+                            max: Math.max(...rhinoData) * 1.2,
                             ticks: {
                                 callback: function(value) {
                                     return value + '%';
@@ -859,6 +1026,40 @@
             }
         }
 
+        // Ejecutar inicialización después de un breve delay
+        setTimeout(() => {
+            console.log('Iniciando dashboard (con o sin Chart.js)...');
+            initializeDashboard();
+        }, 2000);
+        
+        function initializeDashboard() {
+            console.log('Inicializando dashboard...');
+            
+            // Configurar Chart.js si está disponible
+            if (typeof Chart !== 'undefined') {
+                Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+                Chart.defaults.color = '#2c3e50';
+            }
+            
+            // Intentar cargar datos con fetch normal
+            fetchData().catch(error => {
+                console.error('Fetch falló, intentando con JSONP...', error);
+                // Si fetch falla, intentar con JSONP
+                fetchDataJSONP();
+            });
+            
+            // Auto-refresh every 5 minutes
+            setInterval(() => {
+                fetchData().catch(() => fetchDataJSONP());
+            }, 300000);
+        }
+        
+        // Global error handler
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Error global:', msg, 'en línea:', lineNo);
+            return false;
+        };
+        
         // Función alternativa con JSONP para evitar CORS
         function fetchDataJSONP() {
             console.log('Intentando con JSONP...');
@@ -908,40 +1109,6 @@
             
             document.head.appendChild(script);
         }
-
-        function initializeDashboard() {
-            console.log('Inicializando dashboard...');
-            
-            // Configurar Chart.js si está disponible
-            if (typeof Chart !== 'undefined') {
-                Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-                Chart.defaults.color = '#2c3e50';
-            }
-            
-            // Intentar cargar datos con fetch normal
-            fetchData().catch(error => {
-                console.error('Fetch falló, intentando con JSONP...', error);
-                // Si fetch falla, intentar con JSONP
-                fetchDataJSONP();
-            });
-            
-            // Auto-refresh every 5 minutes
-            setInterval(() => {
-                fetchData().catch(() => fetchDataJSONP());
-            }, 300000);
-        }
-        
-        // Global error handler
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Error global:', msg, 'en línea:', lineNo);
-            return false;
-        };
-
-        // Ejecutar inicialización después de un breve delay
-        setTimeout(() => {
-            console.log('Iniciando dashboard (con o sin Chart.js)...');
-            initializeDashboard();
-        }, 2000);
     </script>
 </body>
 </html>
