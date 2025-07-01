@@ -137,6 +137,10 @@
             height: 400px;
             margin-top: 20px;
         }
+        
+        .main-chart .chart-container {
+            height: 450px; /* Más alto para el gráfico principal */
+        }
 
         .stats-grid {
             display: grid;
@@ -338,7 +342,7 @@
         <div class="main-grid">
             <div class="card main-chart">
                 <h2 class="card-title">
-                    📊 Evolución de Patógenos 2025 - Líneas Apiladas (% Positividad)
+                    📊 Barras Apiladas - Evolución de Patógenos 2025 (% Positividad)
                 </h2>
                 <div class="chart-container">
                     <canvas id="mainChart"></canvas>
@@ -396,7 +400,7 @@
         async function fetchData() {
             try {
                 console.log('Iniciando carga de datos...');
-                console.log('URL:', WEB_APP_URL);
+                console.log('URL:', WEB_APP_URL.substring(0, 50) + '...');
                 
                 const response = await fetch(WEB_APP_URL, {
                     method: 'GET',
@@ -413,7 +417,7 @@
                 }
                 
                 const text = await response.text();
-                console.log('Respuesta cruda:', text.substring(0, 200));
+                console.log('Respuesta cruda (primeros 100 caracteres):', text.substring(0, 100) + '...');
                 
                 let result;
                 try {
@@ -425,10 +429,24 @@
                 }
                 
                 if (result.exito && result.datos && Array.isArray(result.datos) && result.datos.length > 0) {
-                    data = result.datos;
-                    console.log(`Datos cargados: ${result.totalSemanas} semanas`);
+                    // Eliminar duplicados basándose en la fecha
+                    const uniqueDates = new Map();
+                    result.datos.forEach(week => {
+                        if (week && week.fecha) {
+                            const dateStr = new Date(week.fecha).toISOString().split('T')[0];
+                            if (!uniqueDates.has(dateStr)) {
+                                uniqueDates.set(dateStr, week);
+                            }
+                        }
+                    });
                     
-                    document.getElementById('totalWeeks').textContent = result.totalSemanas;
+                    data = Array.from(uniqueDates.values()).sort((a, b) => 
+                        new Date(a.fecha) - new Date(b.fecha)
+                    );
+                    
+                    console.log(`Datos cargados: ${result.totalSemanas} total, ${data.length} únicas`);
+                    
+                    document.getElementById('totalWeeks').textContent = data.length;
                     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
                     
                     processData();
@@ -577,7 +595,7 @@
                 return;
             }
             
-            console.log(`Mostrando ${data2025.length} semanas en el gráfico`);
+            console.log(`Mostrando ${data2025.length} semanas únicas del 2025`);
             
             // Obtener todos los patógenos únicos del período
             const allPathogens = new Set();
@@ -606,15 +624,15 @@
                 .slice(0, 7)
                 .map(entry => entry[0]);
             
-            // Colores vibrantes para mejor visualización
+            // Colores vibrantes y bien diferenciados para barras apiladas
             const colors = [
-                { bg: 'rgba(0, 102, 204, 0.8)', border: '#0066cc' },     // Azul
-                { bg: 'rgba(40, 167, 69, 0.8)', border: '#28a745' },     // Verde
-                { bg: 'rgba(255, 193, 7, 0.8)', border: '#ffc107' },     // Amarillo
-                { bg: 'rgba(220, 53, 69, 0.8)', border: '#dc3545' },     // Rojo
-                { bg: 'rgba(108, 117, 125, 0.8)', border: '#6c757d' },   // Gris
-                { bg: 'rgba(255, 133, 27, 0.8)', border: '#ff851b' },    // Naranja
-                { bg: 'rgba(156, 39, 176, 0.8)', border: '#9c27b0' }     // Púrpura
+                { bg: '#0066cc', border: '#0052a3' },     // Azul fuerte
+                { bg: '#28a745', border: '#208637' },     // Verde
+                { bg: '#ffc107', border: '#d39e00' },     // Amarillo
+                { bg: '#dc3545', border: '#bd2130' },     // Rojo
+                { bg: '#6c757d', border: '#545b62' },     // Gris
+                { bg: '#ff6f00', border: '#cc5a00' },     // Naranja
+                { bg: '#9c27b0', border: '#7b1fa2' }      // Púrpura
             ];
             
             // Preparar datasets para líneas apiladas
@@ -632,11 +650,9 @@
                     data: pathogenData,
                     backgroundColor: colors[index % colors.length].bg,
                     borderColor: colors[index % colors.length].border,
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: data2025.length > 20 ? 0 : 3,
-                    pointHoverRadius: 5
+                    borderWidth: 1,
+                    barPercentage: 1.0,
+                    categoryPercentage: 1.0
                 };
             });
             
@@ -648,20 +664,19 @@
                 return;
             }
             
-            // Crear gráfico de líneas apiladas
+            // Crear gráfico de BARRAS APILADAS
             mainChart = new Chart(ctx, {
-                type: 'line',
+                type: 'bar', // BARRAS, NO LÍNEAS!
                 data: {
                     labels: data2025.map((w, i) => {
                         try {
                             const date = new Date(w.fecha);
                             if (!isNaN(date.getTime())) {
-                                // Mostrar fecha corta si hay muchas semanas
-                                if (data2025.length > 20) {
-                                    return (i % 4 === 0) ? date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' }) : '';
-                                } else {
-                                    return date.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
+                                // Si hay muchas semanas, mostrar solo algunas etiquetas
+                                if (data2025.length > 20 && i % Math.ceil(data2025.length / 10) !== 0) {
+                                    return '';
                                 }
+                                return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
                             }
                         } catch (e) {
                             console.warn('Fecha inválida:', w.fecha);
@@ -680,7 +695,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: `Evolución de Patógenos - ${data2025.length} Semanas del 2025`,
+                            text: `Distribución de Patógenos - ${data2025.length} Semanas (Enero-Abril 2025)`,
                             font: {
                                 size: 16
                             },
@@ -711,8 +726,12 @@
                             }
                         }
                     },
+                    // Configuración para barras más compactas
+                    barPercentage: data2025.length > 20 ? 1.0 : 0.8,
+                    categoryPercentage: data2025.length > 20 ? 1.0 : 0.9,
                     scales: {
                         x: {
+                            stacked: true, // IMPORTANTE: apilar en X
                             grid: {
                                 display: false
                             },
@@ -720,13 +739,14 @@
                                 maxRotation: 45,
                                 minRotation: 45,
                                 autoSkip: true,
+                                maxTicksLimit: 15, // Máximo 15 etiquetas
                                 font: {
                                     size: 10
                                 }
                             }
                         },
                         y: {
-                            stacked: true,
+                            stacked: true, // IMPORTANTE: apilar en Y
                             beginAtZero: true,
                             max: 100,
                             ticks: {
@@ -757,14 +777,14 @@
                 existingSummary.remove();
             }
             
+            // Resumen del período
             const summary = document.createElement('div');
             summary.className = 'chart-summary';
             summary.style.cssText = 'margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px;';
             summary.innerHTML = `
-                <strong>Resumen del período:</strong> ${data2025.length} semanas analizadas • 
+                <strong>Resumen del período:</strong> ${data2025.length} semanas analizadas (sin duplicados) • 
                 <strong>Patógeno dominante:</strong> ${top7Pathogens[0]} • 
-                <strong>Fecha inicial:</strong> ${new Date(data2025[0].fecha).toLocaleDateString('es-CO')} • 
-                <strong>Fecha final:</strong> ${new Date(data2025[data2025.length - 1].fecha).toLocaleDateString('es-CO')}
+                <strong>Rango de fechas:</strong> ${new Date(data2025[0].fecha).toLocaleDateString('es-CO')} - ${new Date(data2025[data2025.length - 1].fecha).toLocaleDateString('es-CO')}
             `;
             chartContainer.appendChild(summary);
         }
@@ -1072,10 +1092,24 @@
                 console.log('Datos recibidos via JSONP');
                 
                 if (result.exito && result.datos && Array.isArray(result.datos) && result.datos.length > 0) {
-                    data = result.datos;
-                    console.log(`Datos cargados: ${result.totalSemanas} semanas`);
+                    // Eliminar duplicados basándose en la fecha
+                    const uniqueDates = new Map();
+                    result.datos.forEach(week => {
+                        if (week && week.fecha) {
+                            const dateStr = new Date(week.fecha).toISOString().split('T')[0];
+                            if (!uniqueDates.has(dateStr)) {
+                                uniqueDates.set(dateStr, week);
+                            }
+                        }
+                    });
                     
-                    document.getElementById('totalWeeks').textContent = result.totalSemanas;
+                    data = Array.from(uniqueDates.values()).sort((a, b) => 
+                        new Date(a.fecha) - new Date(b.fecha)
+                    );
+                    
+                    console.log(`Datos cargados: ${result.totalSemanas} total, ${data.length} únicas`);
+                    
+                    document.getElementById('totalWeeks').textContent = data.length;
                     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('es-CO');
                     
                     processData();
